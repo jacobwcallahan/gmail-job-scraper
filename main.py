@@ -177,7 +177,11 @@ def get_emails(email, password):
 
 if __name__ == "__main__":
     # get the old entries from the csv file
-    old_entries = pd.read_csv(job_csv)
+    try:
+        old_entries = pd.read_csv(job_csv)
+    except:
+        print(f"No Previous CSV File Found, Creating New One")
+        old_entries = pd.DataFrame(columns=["date", "company", "position", "status", "email"])
 
     for i in range(len(emails)):
         # get the emails from the inbox
