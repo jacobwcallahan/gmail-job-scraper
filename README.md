@@ -66,7 +66,7 @@ The following variables must be set:
 
 - `OPENAI_API_KEY`: This is the api key given by OpenAI. This will be used to classify the emails.
   
-    Example: `OPENAI_API_KEY="openai_secret_key_should_go_here"`
+    Example: `OPENAI_API_KEY="sk-openai_secret_key_should_go_here"`
 
 # Notes
 
