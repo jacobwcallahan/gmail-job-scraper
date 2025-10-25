@@ -6,7 +6,8 @@ The script connects to Gmail via IMAP, uses OpenAI to classify incoming messages
 
 Scrapes gmail for job application confirmations and logs them in a csv file.
 CSV file is formatted as:
-date | company | position | status | email
+
+`date | company | position | status | email`
 
 - date: Date of job application
 - company: Company applied to
@@ -39,13 +40,15 @@ Rename it to settings.config once the variables are properly set.
 
 The following variables must be set:
 
-- last_date: This is the last date to check for job applications. Updated after the program is run. 
+- `last_date`: This is the last date to check for job applications. Updated after the program is run. 
     Format: MM-DD-YYYY
-    Example: last_date=08-01-2025
-- emails: List of emails to scrape the inboxes of. Must be separated by commas with no quotes.
-    Example: emails=email1@gmail.com, email2@gmail.com
-- job_csv_dir: Path to the csv file where the job applications are stored.
-    Example: job_csv_dir=/path/to/csv/job_apps.csv
+    Example: `last_date=08-01-2025`
+
+- `emails`: List of emails to scrape the inboxes of. Must be separated by commas with no quotes.
+    Example: `emails=email1@gmail.com, email2@gmail.com`
+
+- `job_csv_dir`: Path to the csv file where the job applications are stored.
+    Example: `job_csv_dir=/path/to/csv/job_apps.csv`
 
 ### .env
 
@@ -53,10 +56,11 @@ The .env file contains api-keys and passwords used to run the program. .env.temp
 
 The following variables must be set:
 
-- EMAIL_PASSWORDS: These are 'App Passwords' produced by google for a specific Email. They are used with imap technology. They are four strings of length 4 separated by spaces. These must be separated by commas. They *must* be in the same order as the corresponding emails in the 'emails' variable in the config file. 
-    Example: EMAIL_PASSWORDS="aaaa bbbb cccc dddd, eeee ffff gggg hhhh"
-- OPENAI_API_KEY: This is the api key given by OpenAI. This will be used to classify the emails. 
-    Example: OPENAI_API_KEY="openai_secret_key_should_go_here"
+- `EMAIL_PASSWORDS`: These are 'App Passwords' produced by google for a specific Email. They are used with imap technology. They are four strings of length 4 separated by spaces. These must be separated by commas. They *must* be in the same order as the corresponding emails in the 'emails' variable in the config file. 
+    Example: `EMAIL_PASSWORDS="aaaa bbbb cccc dddd, eeee ffff gggg hhhh"`
+
+- `OPENAI_API_KEY`: This is the api key given by OpenAI. This will be used to classify the emails. 
+    Example: `OPENAI_API_KEY="openai_secret_key_should_go_here"`
 
 # Notes
 
