@@ -1,0 +1,6 @@
+pandas
+openai
+imaplib
+email
+configparser
+python-dotenv
