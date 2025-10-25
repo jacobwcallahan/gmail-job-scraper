@@ -1,4 +1,12 @@
 def update_value(file_path, key, new_value):
+    """
+    Update a value in a config file.
+
+    Args:
+        file_path: The path to the config file.
+        key: The key to update.
+        new_value: The new value to set.
+    """
     lines = []
     found = False
 
