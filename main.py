@@ -5,15 +5,19 @@ from email.utils import parsedate_to_datetime
 from datetime import datetime
 from dotenv import dotenv_values
 from openai import OpenAI
-from utils import update_value
+from utils import update_value, get_email_data
 import json
 import sys
 import time
 from datetime import timezone
 import configparser
+import os
+import yaml
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 config = configparser.ConfigParser()
-config.read("settings.config")
+config.read(os.path.join(BASE_DIR, "settings.config"))
 
 # Get the last date and emails from the config file
 last_date = datetime.strptime(config["general"]["last_date"], "%m-%d-%Y").astimezone(timezone.utc)
@@ -25,7 +29,7 @@ emails = [e.strip() for e in config["general"]["emails"].split(",")]
 job_csv = config["general"]["job_csv_dir"]
 
 # Get the email passwords and openai api key from the env file
-env = dotenv_values(".env")
+env = dotenv_values(os.path.join(BASE_DIR, ".env"))
 
 # Get the email passwords and openai api key from the env file
 # email passwords must be in the same order as the emails list
@@ -33,6 +37,40 @@ EMAIL_PASSWORDS = [e.strip() for e in env['EMAIL_PASSWORDS'].split(",")]
 OPENAI_API_KEY = env["OPENAI_API_KEY"]
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+
+def classify_subject(subject):
+    """
+    Classify the subject of the email as a job application confirmation or follow up email.
+    """
+    with open(os.path.join(BASE_DIR, "prompts.yaml"), "r") as f:
+        data = yaml.safe_load(f)
+
+    prompt = data["email_subject_classifier_prompt"]
+
+    prompt = prompt.format(subject=subject)
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[
+            {"role": "system", "content": "You are a precise JSON-only classifier with no commentary."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+    )
+
+
+    raw = response.choices[0].message.content.strip()
+
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        print(f"Error parsing JSON: {raw}")
+        result = {
+            "is_job_application": True,
+        }
+
+    return result["is_job_application"]
 
 def classify_email(subject, content, sender, date):
     """
@@ -51,38 +89,23 @@ def classify_email(subject, content, sender, date):
         - position: The position title or 'None' if the email is not a job application confirmation or follow up email.
         - status: The status of the application or 'None' if the email is not a job application confirmation or follow up email.
     """
-    prompt = f"""
-You are an email classifier. 
-Determine if the email below is a confirmation or acknowledgement for a job application. 
-If it seems like a job application confimation email, extract the company name, position title, and status of the application(it will be either "applied", "interviewing", "rejected", or "accepted").
 
-If it's a follow up email, give the company name, position title, and the status of the application(it will be either "applied", "interviewing", "rejected", or "accepted").
-Otherwise, return False for is_job_application.
+    # Load the YAML file
+    with open(os.path.join(BASE_DIR, "prompts.yaml"), "r") as f:
+        data = yaml.safe_load(f)
 
-Respond ONLY with a valid JSON object in the following format:
+    prompt = data["email_job_classifier_prompt"]
 
-{{
-  "is_job_application": true/false,
-  "company": "Company name or 'None'",
-  "position": "Position title or 'None'",
-  "status": "Status of the application or 'None'"}}
-
-Email:
-Subject: {subject}
-Sender: {sender}
-Content: {content}
-"""
+    prompt = prompt.format(subject=subject, content=content, sender=sender)
 
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0,
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a precise JSON-only classifier with no commentary."},
             {"role": "user", "content": prompt}
         ],
         response_format={"type": "json_object"},
     )
-
 
     raw = response.choices[0].message.content.strip()
 
@@ -132,13 +155,14 @@ def get_emails(email, password):
         time.sleep(.1)
         status, data = imap.fetch(msg_id, "(RFC822)")
         msg = message_from_bytes(data[0][1])
-        subj = msg["Subject"] or ""
-        sender = msg["From"] or ""
-        date = parsedate_to_datetime(msg["Date"])
-        content = msg.get_payload()
+        date, subj, sender, content = get_email_data(msg)
+
 
         if date <= last_date:
             break
+
+        if not classify_subject(subj):
+            continue
 
         classification = classify_email(subj, content, sender, date)
 
@@ -184,10 +208,12 @@ if __name__ == "__main__":
         old_entries = pd.DataFrame(columns=["date", "company", "position", "status", "email"])
 
     for i in range(len(emails)):
+        print(f"Processing email: {emails[i]}")
         # get the emails from the inbox
         entries = get_emails(emails[i], EMAIL_PASSWORDS[i])
         old_entries = pd.concat([old_entries, entries])
         sys.stdout.flush()
+        print("\n")
     
     # drop duplicates
     old_entries = old_entries.drop_duplicates(subset=['company', 'position', "email"])
@@ -197,7 +223,7 @@ if __name__ == "__main__":
     old_entries.to_csv(job_csv, index=False)
 
     # update the last date in the config file
-    update_value("settings.config", "last_date", datetime.today().strftime("%m-%d-%Y"))
+    update_value(os.path.join(BASE_DIR, "settings.config"), "last_date", datetime.today().strftime("%m-%d-%Y"))
 
     # print success message
     print("Successfully processed emails and saved to csv file")
