@@ -52,8 +52,12 @@ def get_email_data(msg):
                 continue
 
             charset = part.get_content_charset() or "utf-8"
-            text = payload.decode(charset, errors="replace")
-
+            
+            try:
+                text = payload.decode(charset, errors="replace")
+            except LookupError:
+                text = payload.decode("utf-8", errors="replace")
+                
             if ctype == "text/plain":
                 content += text
             elif ctype == "text/html" and not content:
